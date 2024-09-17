@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     pathRewrite: [
       {
         patternStr: '^/api/podcasts',
-        replaceStr: '/podcasts/',
+        replaceStr: '/podcasts',
       },
     ],
   });
