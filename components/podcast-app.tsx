@@ -7,6 +7,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, Play, Pause, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext
+  }
+}
+
 interface Podcast {
   id: number;
   topic: string;
@@ -22,6 +28,8 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [waveformData, setWaveformData] = useState<number[]>([])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -38,6 +46,70 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     }
   }, [audioUrl])
 
+  useEffect(() => {
+    const generateWaveform = async () => {
+      const response = await fetch(audioUrl)
+      const arrayBuffer = await response.arrayBuffer()
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+
+      const channelData = audioBuffer.getChannelData(0)
+      const samples = 100
+      const blockSize = Math.floor(channelData.length / samples)
+      const filteredData = []
+      for (let i = 0; i < samples; i++) {
+        const blockStart = blockSize * i
+        let sum = 0
+        for (let j = 0; j < blockSize; j++) {
+          sum += Math.abs(channelData[blockStart + j])
+        }
+        filteredData.push(sum / blockSize)
+      }
+      setWaveformData(filteredData)
+    }
+
+    generateWaveform()
+  }, [audioUrl])
+
+  useEffect(() => {
+    const drawWaveform = () => {
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext('2d')
+      if (canvas && ctx && waveformData.length > 0) {
+        const dpr = window.devicePixelRatio || 1
+        canvas.width = canvas.offsetWidth * dpr
+        canvas.height = 200 * dpr
+        ctx.scale(dpr, dpr)
+
+        const width = canvas.width / dpr
+        const height = 200
+        const barWidth = width / waveformData.length
+
+
+        ctx.fillStyle = '#4a5568' // Background color
+        // ctx.fillRect(0, 0, width, height)
+
+        // Find the maximum value in the waveform data
+        const maxValue = Math.max(...waveformData)
+
+        // Calculate the center line
+        const centerY = height / 2
+
+        // Calculate the prgoress of the audio
+        const progress = currentTime / duration
+
+        // Scale and draw the waveform data
+        waveformData.forEach((value, index) => {
+        const scaledValue = (value / maxValue) * (height / 2)
+        ctx.fillStyle = index / waveformData.length <= progress ? '#e2e8f0' : '#718096' // Change color based on progress
+        ctx.fillRect(index * barWidth, centerY - scaledValue, barWidth, scaledValue * 2)
+        })
+      }
+    }
+
+    drawWaveform()
+  }, [waveformData, currentTime, duration])
+
   const togglePlayPause = () => {
     const audio = audioRef.current
     if (audio) {
@@ -48,6 +120,17 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
         audio.pause()
         setIsPlaying(false)
       }
+    }
+  }
+
+  const handleWaveformClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const audio = audioRef.current
+    if (canvas && audio) {
+      const rect = canvas.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const clickPosition = x / canvas.offsetWidth
+      audio.currentTime = clickPosition * audio.duration
     }
   }
 
@@ -64,10 +147,18 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
         size="icon"
         onClick={togglePlayPause}
         className="text-white hover:text-gray-300"
+        aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </Button>
-      <span className="text-sm">{formatTime(currentTime)} / {formatTime(duration)}</span>
+      <div className="flex-grow">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-8 cursor-pointer"
+          onClick={handleWaveformClick}
+        />
+      </div>
+      <span className="text-xs whitespace-nowrap">{formatTime(currentTime)} / {formatTime(duration)}</span>
       <audio ref={audioRef} src={audioUrl} />
     </div>
   )
@@ -168,10 +259,10 @@ export function PodcastApp() {
 
           <div className="mt-8">
             <h2 className="text-xl font-semibold mb-4 text-white">Recent Podcasts</h2>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {recentPodcasts.map((podcast) => (
                 <Card key={podcast.id} className="bg-gray-700 text-white">
-                  <CardContent className="p-3">
+                  <CardContent className="p-4">
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="font-semibold text-sm">{podcast.topic}</h3>
                       <Dialog>
