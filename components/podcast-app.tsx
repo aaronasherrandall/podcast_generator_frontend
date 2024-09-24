@@ -7,12 +7,28 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, Play, Pause, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
+/**
+ * Declares a global interface for the `window` object.
+ * This interface extends the `Window` interface and adds a property `webkitAudioContext` of type `AudioContext`.
+ *
+ * @global
+ * @interface Window
+ * @extends globalThis.Window
+ */
 declare global {
   interface Window {
     webkitAudioContext: typeof AudioContext
   }
 }
 
+/**
+ * Represents a podcast.
+ *
+ * @remarks
+ * This interface defines the structure of a podcast object.
+ *
+ * @public
+ */
 interface Podcast {
   id: number;
   topic: string;
@@ -23,14 +39,36 @@ interface AudioPlayerProps {
   audioUrl: string;
 }
 
+/**
+ * AudioPlayer component for playing audio and displaying a waveform.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {string} props.audioUrl - The URL of the audio file to be played.
+ * @returns {JSX.Element} The rendered AudioPlayer component.
+ */
 function AudioPlayer({ audioUrl }: AudioPlayerProps) {
+  // * Represents the state of whether the podcast is currently playing or not.
+  // * The audio is paused by default.
+  // * The state is toggled when the play/pause button is clicked.
+  // * The state is used to determine the icon of the play/pause button.
+  // * The state is also used to determine whether the audio should be played or paused.
+  // * The state is updated when the audio is played or paused.
   const [isPlaying, setIsPlaying] = useState(false)
+  // * Represents the current time of the audio playback.
   const [currentTime, setCurrentTime] = useState(0)
+  // * Represents the total duration of the audio file.
+  // * The duration is set to 0 initially and is updated when the audio file is loaded.
   const [duration, setDuration] = useState(0)
+  // * Ref object for the audio element.
   const audioRef = useRef<HTMLAudioElement>(null)
+  // * Ref object for the canvas element.
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  // * Represents the waveform data of the audio file.
   const [waveformData, setWaveformData] = useState<number[]>([])
 
+  // * Effect hook that runs when the audio URL changes.
+  // * The effect adds event listeners to the audio element to update the current time and duration.
   useEffect(() => {
     const audio = audioRef.current
     if (audio) {
@@ -46,6 +84,10 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     }
   }, [audioUrl])
 
+  // * Effect hook that runs when the audio URL changes.
+  // * The effect fetches the audio file and decodes it to generate the waveform data.
+  // * The effect updates the waveform data state with the generated waveform data.
+  // * The effect runs only when the audio URL changes.
   useEffect(() => {
     const generateWaveform = async () => {
       const response = await fetch(audioUrl)
@@ -71,6 +113,10 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     generateWaveform()
   }, [audioUrl])
 
+  // * Effect hook that runs when the waveform data, current time, or duration changes.
+  // * The effect draws the waveform on the canvas element.
+  // * The effect scales and draws the waveform data based on the current time and duration.
+  // * The effect runs when the waveform data, current time, or duration changes.
   useEffect(() => {
     const drawWaveform = () => {
       const canvas = canvasRef.current
@@ -110,6 +156,9 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     drawWaveform()
   }, [waveformData, currentTime, duration])
 
+  // * Function to toggle play/pause of the audio.
+  // * The function plays the audio if it is paused.
+  // * The function pauses the audio if it is playing.
   const togglePlayPause = () => {
     const audio = audioRef.current
     if (audio) {
@@ -123,6 +172,11 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     }
   }
 
+  // * Function to handle click events on the waveform.
+  // * The function calculates the click position and sets the audio current time accordingly.
+  // * The function is called when the waveform is clicked.
+  // * The function updates the audio current time based on the click position.
+  // * The function is used to seek the audio to a specific position.
   const handleWaveformClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     const audio = audioRef.current
@@ -134,12 +188,17 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     }
   }
 
+  // * Function to format the time in minutes and seconds.
+  // * The function takes a time in seconds and returns a formatted string in the format `mm:ss`.
+  // * The function is used to display the current time and duration of the audio.
   const formatTime = (time: number): string => {
     const minutes = Math.floor(time / 60)
     const seconds = Math.floor(time % 60)
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
+  // * Render the AudioPlayer component.
+  // * The component consists of a play/pause button, a waveform canvas, and a time display.
   return (
     <div className="flex items-center space-x-2">
       <Button
@@ -164,22 +223,33 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
   )
 }
 
+// * PodcastApp component for generating and playing podcasts.
+// * The component allows users to generate podcasts based on a topic.
+// * The component displays loading and error messages.
 export function PodcastApp() {
   const [topic, setTopic] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [recentPodcasts, setRecentPodcasts] = useState<Podcast[]>([])
 
+  // * Effect hook that runs when the component is mounted.
+  // * The effect fetches the most recent podcasts from the server.
+  // * The effect updates the recent podcasts state with the fetched data.
   useEffect(() => {
     fetchPodcasts()
   }, [])
 
+  // * Function to fetch the most recent podcasts from the server.
+  // * The function makes a GET request to the `/api/podcasts/` endpoint.
+  // * The function updates the recent podcasts state with the fetched data.
   const fetchPodcasts = async () => {
     try {
       const response = await fetch('/api/podcasts/')
       if (!response.ok) {
         throw new Error('Failed to fetch podcasts')
       }
+      // * Parse the response data as JSON
+      // * Limit the number of podcasts to 5
       const data = await response.json()
       setRecentPodcasts(data.slice(0, 5)) // Limit to 5 most recent podcasts
     } catch (error) {
@@ -188,10 +258,17 @@ export function PodcastApp() {
     }
   }
 
+  // * Function to handle changes to the topic input field.
+  // * The function updates the topic state with the value of the input field.
+  // * The function is called when the input field value changes.
   const handleTopicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTopic(e.target.value)
   }
 
+  // * Function to handle form submission.
+  // * The function generates a podcast based on the topic input.
+  // * The function makes a POST request to the `/api/podcasts/` endpoint.
+  // * The function updates the recent podcasts state with the generated podcast.
   const handleSubmit = async () => {
     setIsLoading(true)
     setError('')
@@ -214,13 +291,17 @@ export function PodcastApp() {
     }
   }
 
+  // * Function to handle deletion of a podcast.
+  // * The function makes a DELETE request to the `/api/podcasts/:id/` endpoint.
+  // * The function updates the recent podcasts state by fetching the most recent podcasts.
   const handleDelete = async (id: number) => {
     try {
       const response = await fetch(`/api/podcasts/${id}/`, {
         method: 'DELETE',
       })
       if (!response.ok) {
-        throw new Error('Failed to delete podcast')
+        const errorText = await response.text();
+        throw new Error(`Failed to delete podcast: ${response.status} ${errorText}`);
       }
       await fetchPodcasts() // Refresh the podcast list
     } catch (error) {
